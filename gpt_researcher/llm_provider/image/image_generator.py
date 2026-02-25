@@ -152,7 +152,42 @@ class ImageGeneratorProvider:
         except Exception as e:
             logger.warning(f"Failed to crop image to landscape: {e}")
             return image_bytes
-    
+
+    def _resize_image(self, image_bytes: bytes, target_size: tuple[int, int]) -> bytes:
+        """Resize image to target size.
+        
+        Args:
+            image_bytes: Raw image bytes.
+            target_size: Tuple of (width, height).
+            
+        Returns:
+            Resized image bytes in PNG format.
+        """
+        try:
+            from PIL import Image
+            import io
+            
+            # Open the image
+            img = Image.open(io.BytesIO(image_bytes))
+            
+            # Resize the image
+            resized = img.resize(target_size)
+            
+            # Save to bytes
+            output = io.BytesIO()
+            resized.save(output, format='PNG', optimize=True)
+            output.seek(0)
+            
+            logger.info(f"Resized image to {target_size[0]}x{target_size[1]}")
+            return output.getvalue()
+            
+        except ImportError:
+            logger.warning("PIL not available for image resizing, returning original")
+            return image_bytes
+        except Exception as e:
+            logger.warning(f"Failed to resize image: {e}")
+            return image_bytes
+
     def _build_enhanced_prompt(self, prompt: str, context: str = "", style: str = "dark") -> str:
         """Build an enhanced prompt with explicit styling instructions.
         
@@ -318,6 +353,9 @@ AVOID:
                             # To enable landscape cropping, uncomment:
                             # image_bytes = self._crop_to_landscape(image_bytes)
                             
+                            # Resize image
+                            image_bytes = self._resize_image(image_bytes, (680, 680))
+
                             with open(filepath, 'wb') as f:
                                 f.write(image_bytes)
                             
